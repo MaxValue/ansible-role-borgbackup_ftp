@@ -1,0 +1,54 @@
+---
+# THIS IS NOT DRY BECAUSE JINJA FAILS TO CONVERT null TO null INSTEAD OF A STRING
+# RELATED ISSUES:
+# https://github.com/ansible/ansible/blob/devel/lib/ansible/modules/expect.py#L148
+# https://github.com/ansible/ansible/issues/9362
+# https://github.com/pallets/jinja/pull/708
+- name: Create backup
+  # desc: >
+  #   Create a new borg archive of the given directory.
+  #   We will do this directly from the given dir in order to prevent storing the full path
+  #   (keep this in mind when checking out archives from the borg repo).
+  when:
+    - borgbackup_perform
+    - _borgbackup_timeout == _nullval or _borgbackup_timeout == ''
+  ansible.builtin.expect:
+    chdir: "{{ ftp_dest }}"
+    command: >-
+      {{ borgbackup_borgpath }} create
+      --json
+      {{ (borgbackup_sshcommand | length > 0) | ternary("--rsh '" + (borgbackup_sshcommand | default('')) + "'", '') }}
+      ::{{ now().utcnow().strftime(borgbackup_archivenameformat) }}
+      .
+    responses:
+      "^Enter passphrase for key [^\\n]+:": "{{ borgbackup_passphrase }}"
+    timeout: null
+  environment:
+    "TZ": "UTC"
+    "BORG_REPO": "{{ borgbackup_repo }}"
+  no_log: "{{ borgbackupftp_nolog }}"
+
+- name: Create backup
+  # desc: >
+  #   Create a new borg archive of the given directory.
+  #   We will do this directly from the given dir in order to prevent storing the full path
+  #   (keep this in mind when checking out archives from the borg repo).
+  when:
+    - borgbackup_perform
+    - _borgbackup_timeout != _nullval and _borgbackup_timeout != ''
+  ansible.builtin.expect:
+    chdir: "{{ ftp_dest }}"
+    command: >-
+      {{ borgbackup_borgpath }} create
+      --json
+      {{ (borgbackup_sshcommand | length > 0) | ternary("--rsh '" + (borgbackup_sshcommand | default('')) + "'", '') }}
+      ::{{ now().utcnow().strftime(borgbackup_archivenameformat) }}
+      .
+    responses:
+      "^Enter passphrase for key [^\\n]+:": "{{ borgbackup_passphrase }}"
+    timeout: "{{ _borgbackup_timeout }}"
+  environment:
+    "TZ": "UTC"
+    "BORG_REPO": "{{ borgbackup_repo }}"
+  no_log: "{{ borgbackupftp_nolog }}"
+...

@@ -1,0 +1,25 @@
+---
+- name: Download FTP directory
+  # desc: Store the contents of the FTP directory in the path we created before.
+  ansible.builtin.command:
+    cmd: >-
+      lftp -c "
+      {{ ftp_vars }}
+      open
+      {{ (ftp_user | length > 0) | ternary('--user ' + ftp_user, '') }}
+      {{ (ftp_password | length > 0) | ternary('--env-password', '') }}
+      {{ ftp_host }} &&
+      mirror
+      {{ ftp_mirror_opts }}
+      {{ ftp_src }}
+      {{ ftp_dest }}
+      "
+  environment:
+    LFTP_PASSWORD: "{{ ftp_password }}"
+  no_log: "{{ borgbackupftp_nolog }}"
+  register: _result_ftp_download
+  changed_when: >
+    _result_ftp_download.stdout |
+    regex_search('^Modified:\\s+(?P<files>\\d+)\\s+files,\\s+(?P<symlinks>\\d+)\\s+symlinks$', '\\g<files>', '\\g<symlinks>', multiline=True, ignorecase=True) |
+    map('int') is any
+...

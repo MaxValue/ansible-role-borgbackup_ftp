@@ -1,0 +1,23 @@
+---
+ftp_vars: "set ssl:check-hostname false && set ftp:list-options -a &&"
+ftp_host: "{{ undef(hint='You must specify the FTP host') }}"
+ftp_user: ""
+ftp_password: ""
+ftp_mirror_opts: "{{ ftp_speedup | ternary('--only-newer', '') }} --delete --parallel=2"
+ftp_src: "{{ undef(hint='You must specify the FTP source directory') }}"
+ftp_dest: ""
+ftp_speedup: true
+ftp_download_cleanup: true
+borgbackup_perform: true
+borgbackup_borgpath: "borg"
+_borgbackup_timeformat: "%Y-%m-%dT%H:%M:%S"
+borgbackup_sshcommand: ""
+borgbackup_repo: "{{ borgbackup_perform | ternary(undef(hint='You must specify the path to the borg repository'), '') }}"
+borgbackup_passphrase: "{{ borgbackup_perform | ternary(undef(hint='You must specify the passphrase for the borg repository'), '') }}"
+borgbackup_archivenameformat: "{{ ftp_host }}-{{ _borgbackup_timeformat }}"
+borgbackup_archivenameprefix: ""
+borgbackup_timeout: [null, 600]
+borgbackup_timeout_prepare: null
+borgbackupftp_nolog: false
+_nullval: null
+...

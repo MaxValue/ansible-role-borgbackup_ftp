@@ -1,0 +1,8 @@
+---
+- name: Delete tmp download dir
+  # desc: Delete the tmp directory where the FTP dir was downloaded to
+  when: ftp_download_cleanup
+  ansible.builtin.file:
+    state: absent
+    path: "{{ ftp_dest }}"
+...

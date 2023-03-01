@@ -1,0 +1,80 @@
+---
+- name: Ensure defined download dir exists
+  # desc: >
+  #   This just creates the given download directory if it does not exist yet
+  #   The `mode: "{{ omit }}"` direction is needed, because `ansiblelint` would complain otherwise.
+  when: ftp_dest | length > 0
+  ansible.builtin.file:
+    state: directory
+    path: "{{ ftp_dest }}"
+    mode: "{{ omit }}"
+
+- name: Create tmp dir for storing the download
+  # desc: If the user does not provide a download dir, a temporary one will be created
+  when: ftp_dest | length == 0
+  ansible.builtin.tempfile:
+    state: directory
+  register: _result_tmpdir_dest
+
+- name: Set download path for FTP dir
+  # desc: Since the ftp_dest var is not mandatory, it needs to be defined wher the actual download path for the FTP dir is.
+  when: ftp_dest | length == 0
+  ansible.builtin.set_fact:
+    ftp_dest: "{{ _result_tmpdir_dest.path }}"
+
+- name: Get existing archives in borg repo
+  # desc: Get a listing of existing archives in the borg repository
+  when: borgbackup_perform
+  ansible.builtin.expect:
+    command: >-
+      {{ borgbackup_borgpath }} list
+      --json
+      {{ (borgbackup_sshcommand | length > 0) | ternary("--rsh '" + (borgbackup_sshcommand | default('')) + "'", '') }}
+      {{ (borgbackup_archivenameprefix | length > 0) | ternary("--prefix '" + borgbackup_archivenameprefix + "'", '') }}
+      --sort-by timestamp
+    responses:
+      "^Enter passphrase for key [^\\n]+:": "{{ borgbackup_passphrase }}"
+  environment:
+    "TZ": "UTC"
+    "BORG_REPO": "{{ borgbackup_repo }}"
+  no_log: "{{ borgbackupftp_nolog }}"
+  changed_when: false
+  register: _result_borglist_raw
+
+- name: Convert borg list output to JSON
+  # desc: Convert the stringified JSON to proper JSON.
+  when: borgbackup_perform
+  ansible.builtin.set_fact:
+    _result_borglist: "{{ _result_borglist_raw.stdout_lines[1:] | join() | from_json }}"
+
+- name: Calculate timeout length for backup task
+  # desc: Calculate the actual wanted timeout in seconds for the `borg create` command.
+  when: borgbackup_perform
+  ansible.builtin.set_fact:
+    _borgbackup_timeout: >-
+      {% if borgbackup_timeout is sequence -%}
+      {%- if _result_borglist.archives | length == 0 -%}
+        {{ borgbackup_timeout | first }}
+      {%- else -%}
+        {{ borgbackup_timeout | last }}
+      {%- endif -%}
+      {%- elif borgbackup_timeout is none or borgbackup_timeout is integer -%}
+        {{ borgbackup_timeout }}
+      {%- else -%}
+        null
+      {%- endif %}
+
+- name: Export borg archive to download path
+  # desc: Checkout the last borg archive to the FTP download directory.
+  when: borgbackup_perform and ftp_speedup and _result_borglist.archives | length > 0
+  ansible.builtin.expect:
+    chdir: "{{ ftp_dest }}"
+    command: >
+      {{ borgbackup_borgpath }} extract
+      {{ (borgbackup_sshcommand | length > 0) | ternary("--rsh '" + borgbackup_sshcommand + "'", '') }}
+      {{ borgbackup_repo }}::{{ _result_borglist.archives[-1].name }}
+    responses:
+      "^Enter passphrase for key [^\\n]+:": "{{ borgbackup_passphrase }}"
+    timeout: "{{ borgbackup_timeout_prepare }}"
+  no_log: "{{ borgbackupftp_nolog }}"
+...

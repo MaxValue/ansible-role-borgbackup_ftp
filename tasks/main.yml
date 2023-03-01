@@ -1,0 +1,25 @@
+---
+- name: Download, and archive an FTP dir into borg
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Run preparation tasks
+      # desc: Includes all tasks from _prepare.yml in order to prepare the execution of this role.
+      ansible.builtin.include_tasks:
+        file: _prepare.yml
+
+    - name: Run download tasks
+      # desc: Includes all tasks from _download.yml in order to perform the actual download.
+      ansible.builtin.include_tasks:
+        file: _download.yml
+
+    - name: Run backup tasks
+      # desc: Includes all tasks from _backup.yml in order to perform the actual backup.
+      ansible.builtin.include_tasks:
+        file: _backup.yml
+
+    - name: Run cleanup tasks
+      # desc: Includes all tasks from _cleanup.yml in order to clean up unwanted files which were left back from the execution.
+      ansible.builtin.include_tasks:
+        file: _cleanup.yml
+...
