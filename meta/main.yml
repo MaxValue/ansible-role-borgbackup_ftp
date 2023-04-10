@@ -4,7 +4,7 @@ galaxy_info:
   description: Backup an FTP directory using lftp and borgbackup
   author: Maximilian Fuxjäger
 
-  issue_tracker_url: https://gitlab.com/maxvalue-glue/ansible-role-borgbackup-ftp
+  issue_tracker_url: https://gitlab.com/maxvalue-ansible/ansible-role-borgbackup-ftp
 
   license: MIT
 
